@@ -2,7 +2,7 @@
 
 import logging
 import logging.config
-from datetime import datetime
+# from datetime import datetime
 from time import sleep
 
 LOG_SETTINGS = {
@@ -29,7 +29,16 @@ LOG_SETTINGS = {
 }
 logging.config.dictConfig(LOG_SETTINGS)
 
+LOAD_SETTINGS = {
+    'deferrable': {
+    },
+    'sheddable': {
+    },
+}
+
+
 from . import frequency
+from . import loads
 
 logger = logging.getLogger(name='sbc')
 
@@ -37,21 +46,55 @@ logger = logging.getLogger(name='sbc')
 def get_frequency(meter):
     return meter.get_data()
 
-if __name__ == "__main__":
+
+# priority 10 gets shed at 59.995
+def run():
+    # load config file
+    # TODO ^^^^^^^
+    loads.SBCDIOSheddableLoad(priority=9, dio=76)
+    loads.SBCDIOSheddableLoad(priority=10, dio=77)
     # initialize
-    f_meter = frequency.DummyFrequencyMeter([60]*500)
-    last_action = datetime.now()
 
-    # event loop
     try:
+        drop = [59.999, 59.998, 59.997, 59.996, 59.995]
+        bigDrop = [59.992, 59.990, 59.985, 59.985, 59.985]
+        bigRise = [59.985, 59.985, 59.985, 59.990, 59.992]
+        rise = [59.995, 59.996, 59.997, 59.998, 59.999]
+        f_meter = frequency.DummyFrequencyMeter(
+            [60.0]*5+drop+bigDrop+bigRise+rise+[60.0]*2
+        )
+
+        previouslyShed = None
+        # last_action_time = datetime.now()
         while True:
-            # calculate elapsed time
-
-            # if 1 s has passed, get new f reading
             f = get_frequency(f_meter)
-
-            # log some stuff
             logger.info("Measurement: {}".format(f))
-            sleep(1)
+            # needs to be functionalized
+            if f <= 59.995:
+                if previouslyShed is None:
+                    loads.SheddableLoad.shedByPriority(10)
+                    previouslyShed = 10
+                    logger.info("CONTINGENCY: loads of priority=10 are shed.")
+                if (f <= 59.990) and (previouslyShed > 9):
+                    loads.SheddableLoad.shedByPriority(9)
+                    previouslyShed = 9
+                    logger.info("CONTINGENCY: loads of priority>=9 are shed.")
+                elif (f > 59.990) and (previouslyShed <= 9):
+                    loads.SheddableLoad.restoreByPriority(9)
+                    previouslyShed = 10
+                    logger.info("RESTORE: loads of priority<=9 are restored.")
+            else:
+                if previouslyShed:
+                    loads.SheddableLoad.restoreByPriority(10)
+                    logger.info(
+                        "RESTORE: loads of priority=10 restored" +
+                        " contingency over."
+                    )
+                    previouslyShed = None
+
+            sleep(10)
     except KeyboardInterrupt:
-        logger.info("KeyboardInterrupt recieved... exiting")
+        logger.info("KeyboardInterrupt recieved... exiting.")
+
+if __name__ == "__main__":
+    run()
