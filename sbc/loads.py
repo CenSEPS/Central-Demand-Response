@@ -1,5 +1,8 @@
 import subprocess
 import atexit
+from serial import Serial
+from xbee import XBee
+from time import sleep
 
 
 class LoadBase(object):
@@ -113,4 +116,91 @@ class SBCDIOSheddableLoad(SheddableLoad):
 
 
 class DeferrableLoad(LoadBase):
-    pass
+    LoadList = []
+
+    def __init__(self, priority):
+        self.priority = priority
+        self.deferred = False
+        DeferrableLoad.LoadList.append(self)
+        super(DeferrableLoad, self).__init__()
+
+    def isDeferred(self):
+        return self.deferred
+
+    def defer(self):
+        raise NotImplementedError
+
+    def deferByPriority(self, priority):
+        for load in DeferrableLoad.LoadList:
+            if priority == load.priority:
+                load.defer()
+
+    def restore(self):
+        raise NotImplementedError
+
+    def advance(self):
+        raise NotImplementedError
+
+
+# TODO NEED VARIABLE THAT KEEPS TRACK OF CURRENT SETPOINT
+class ArduinoDeferrableWaterHeater(DeferrableLoad):
+    # this is written with only one device connected in mind
+    # we send messages to the PAN broadcast address instead of
+    # to individual water heaters at specific addresses
+    # should be changed later
+    # TODO ^^^^^^^^^^
+    def __init__(self, priority, setpoint, deferOffset, advanceOffset,
+                 serial='/dev/ttyUSB0', baud=9600):
+        self.serial = Serial(serial, baud)
+        self.xbee = XBee(self.serial)
+        self.setpoint = setpoint
+        self.deferOffset = deferOffset
+        self.advanceOffset = advanceOffset
+        self.enabled = False
+        super(ArduinoDeferrableWaterHeater, self).__init__(priority)
+        sleep(2)
+        self._setTemperature(self.setpoint)
+
+    def _setTemperature(self, temperature):
+        self.xbee.tx(dest_addr=b'\xFF\xFF',
+                     data='SetPoint: {}!'.format(temperature))
+        # we should get something back, no dropped packets
+        d = self.xbee.wait_read_frame()
+        return self._checkPacket(
+            d,
+            'Set Point Recieved {:.2f}'.format(temperature)
+        )
+
+    def _checkPacket(self, packet, phrase):
+        if packet['rf_data'].strip() == phrase:
+            return True
+        else:
+            return False
+
+    def enable(self):
+        self.xbee.tx(dest_addr=b'\xFF\xFF', data='ON!')
+        d = self.xbee.wait_read_frame()
+        # if it times out we need to check the status if it's enabled
+        if self._checkPacket(d, 'Water Heater Enabled'):
+            self.enabled = True
+
+    def defer(self):
+        if not self.isDeferred():
+            x = self._setTemperature(self.setpoint - self.deferOffset)
+            self.deferred = x
+
+    def advance(self):
+        # TODO
+        raise NotImplementedError
+
+    def restore(self):
+        if self.isDeferred():
+            x = self._setTemperature(self.setpoint)
+            self.deferred = not x
+
+    def disable(self):
+        self.xbee.tx(dest_addr=b'\xFF\xFF', data='OFF!')
+        d = self.xbee.wait_read_frame()
+        # if it times out we need to check the status if it's enabled
+        if self._checkPacket(d, 'Water Heater Disabled'):
+            self.enabled = False
