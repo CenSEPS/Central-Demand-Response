@@ -12,6 +12,9 @@ venv:
 install: venv
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements.txt
+	git clone https://github.com/thom-nic/python-xbee.git tmp/python-xbee
+	cd tmp/python-xbee; ../../venv/bin/python setup.py install
+	rm -rf tmp
 
 test: lint
 	$(TEST) test/
