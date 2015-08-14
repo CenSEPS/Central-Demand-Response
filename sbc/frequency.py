@@ -1,3 +1,5 @@
+from serial import Serial
+
 
 class FrequencyMeter(object):
     def __init__(self):
@@ -25,3 +27,17 @@ class DummyFrequencyMeter(FrequencyMeter):
             self.index %= len(self.data)
 
         return d
+
+
+class ArduinoFrequencyMeter(FrequencyMeter):
+    def __init__(self, serial='/dev/ttyACM0', baud=9600):
+        self.serial = Serial(serial, baud)
+        super(ArduinoFrequencyMeter, self).__init__()
+
+    def get_data(self):
+        if self.serial.isOpen():
+            self.serial.write('Freq!')
+            r = float(self.serial.readline())
+            return r
+
+        return None

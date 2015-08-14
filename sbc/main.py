@@ -44,7 +44,14 @@ logger = logging.getLogger(name='sbc')
 
 
 def get_frequency(meter):
+    """this function will someday keep a few minutes
+    worth of historical data
+    """
     return meter.get_data()
+
+
+NOMINAL = 75.0
+DELTA = 6.0
 
 
 # priority 10 gets shed at 59.995
@@ -53,36 +60,54 @@ def run():
     # TODO ^^^^^^^
     loads.SBCDIOSheddableLoad(priority=9, dio=76)
     loads.SBCDIOSheddableLoad(priority=10, dio=77)
+    loads.SBCDIOSheddableLoad(priority=10, dio=78)
+    loads.SBCDIOSheddableLoad(priority=10, dio=79)
     # initialize
 
     try:
-        drop = [59.999, 59.998, 59.997, 59.996, 59.995]
-        bigDrop = [59.992, 59.990, 59.985, 59.985, 59.985]
-        bigRise = [59.985, 59.985, 59.985, 59.990, 59.992]
-        rise = [59.995, 59.996, 59.997, 59.998, 59.999]
-        f_meter = frequency.DummyFrequencyMeter(
-            [60.0]*5+drop+bigDrop+bigRise+rise+[60.0]*2
-        )
+        logger.debug("Starting frequency meter")
+        f_meter = frequency.ArduinoFrequencyMeter()
 
         previouslyShed = None
+        # TODO the following should be encapsulated in the arduino
+        # frequency meter class
+        logger.debug("Entering short delay to allow arduino startup")
+        sleep(2)
         # last_action_time = datetime.now()
         while True:
+            logger.debug("Initiating F measurement")
             f = get_frequency(f_meter)
-            logger.info("Measurement: {}".format(f))
+            logger.info("F measurement: {}".format(f))
             # needs to be functionalized
-            if f <= 59.995:
+            if f <= (NOMINAL-1*DELTA):
                 if previouslyShed is None:
                     loads.SheddableLoad.shedByPriority(10)
                     previouslyShed = 10
                     logger.info("CONTINGENCY: loads of priority=10 are shed.")
-                if (f <= 59.990) and (previouslyShed > 9):
+                if (f <= (NOMINAL-2*DELTA)) and (previouslyShed > 9):
                     loads.SheddableLoad.shedByPriority(9)
                     previouslyShed = 9
                     logger.info("CONTINGENCY: loads of priority>=9 are shed.")
-                elif (f > 59.990) and (previouslyShed <= 9):
+                elif (f > (NOMINAL-2*DELTA)) and (previouslyShed <= 9):
                     loads.SheddableLoad.restoreByPriority(9)
                     previouslyShed = 10
                     logger.info("RESTORE: loads of priority<=9 are restored.")
+                if (f <= (NOMINAL-3*DELTA)) and (previouslyShed > 8):
+                    loads.SheddableLoad.shedByPriority(8)
+                    previouslyShed = 8
+                    logger.info("CONTINGENCY: loads of priority>=8 are shed.")
+                elif (f > (NOMINAL-3*DELTA)) and (previouslyShed <= 8):
+                    loads.SheddableLoad.restoreByPriority(8)
+                    previouslyShed = 9
+                    logger.info("RESTORE: loads of priority<=8 are restored.")
+                if (f <= (NOMINAL-4*DELTA)) and (previouslyShed > 7):
+                    loads.SheddableLoad.shedByPriority(7)
+                    previouslyShed = 7
+                    logger.info("CONTINGENCY: loads of priority>=7 are shed.")
+                elif (f > (NOMINAL-4*DELTA)) and (previouslyShed <= 7):
+                    loads.SheddableLoad.restoreByPriority(7)
+                    previouslyShed = 8
+                    logger.info("RESTORE: loads of priority <=7 are restored.")
             else:
                 if previouslyShed:
                     loads.SheddableLoad.restoreByPriority(10)
@@ -92,7 +117,7 @@ def run():
                     )
                     previouslyShed = None
 
-            sleep(10)
+            sleep(2)
     except KeyboardInterrupt:
         logger.info("KeyboardInterrupt recieved... exiting.")
 
