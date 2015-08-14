@@ -118,14 +118,19 @@ class SBCDIOSheddableLoad(SheddableLoad):
 class DeferrableLoad(LoadBase):
     LoadList = []
 
-    def __init__(self, priority):
+    def __init__(self, priority, advanceable=False):
         self.priority = priority
         self.deferred = False
+        self.advanced = False
+        self.advanceable=advanceable
         DeferrableLoad.LoadList.append(self)
         super(DeferrableLoad, self).__init__()
 
     def isDeferred(self):
         return self.deferred
+
+    def isAdvanced(self):
+        return self.advanced
 
     def defer(self):
         raise NotImplementedError
@@ -157,7 +162,10 @@ class ArduinoDeferrableWaterHeater(DeferrableLoad):
         self.deferOffset = deferOffset
         self.advanceOffset = advanceOffset
         self.enabled = False
-        super(ArduinoDeferrableWaterHeater, self).__init__(priority)
+        super(ArduinoDeferrableWaterHeater, self).__init__(
+            priority = priority,
+            advanceable = True
+        )
         sleep(2)
         self._setTemperature(self.setpoint)
 
@@ -185,18 +193,32 @@ class ArduinoDeferrableWaterHeater(DeferrableLoad):
             self.enabled = True
 
     def defer(self):
-        if not self.isDeferred():
+        if self.isAdvanced():
+            # return to nominal to defer
+            x = self._setTemperature(self.setpoint)
+            self.advanced = not x
+        elif not self.isDeferred():
+            # defer
             x = self._setTemperature(self.setpoint - self.deferOffset)
             self.deferred = x
 
     def advance(self):
-        # TODO
-        raise NotImplementedError
+        if self.isDeferred():
+            # return to nominal to advance
+            x = self._setTemperature(self.setpoint)
+            self.deferred = not x
+        if not self.isAdvanced():
+            # advance
+            x = self._setTemperature(self.setpoint + self.deferOffset)
+            self.advanced = x 
 
     def restore(self):
         if self.isDeferred():
             x = self._setTemperature(self.setpoint)
             self.deferred = not x
+        elif self.isAdvanced():
+            x = self._setTemperature(self.setpoint)
+            self.advnaced = not x
 
     def disable(self):
         self.xbee.tx(dest_addr=b'\xFF\xFF', data='OFF!')
