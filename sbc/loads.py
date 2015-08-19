@@ -122,7 +122,7 @@ class DeferrableLoad(LoadBase):
         self.priority = priority
         self.deferred = False
         self.advanced = False
-        self.advanceable=advanceable
+        self.advanceable = advanceable
         DeferrableLoad.LoadList.append(self)
         super(DeferrableLoad, self).__init__()
 
@@ -163,8 +163,8 @@ class ArduinoDeferrableWaterHeater(DeferrableLoad):
         self.advanceOffset = advanceOffset
         self.enabled = False
         super(ArduinoDeferrableWaterHeater, self).__init__(
-            priority = priority,
-            advanceable = True
+            priority=priority,
+            advanceable=True
         )
         sleep(2)
         self._setTemperature(self.setpoint)
@@ -210,7 +210,7 @@ class ArduinoDeferrableWaterHeater(DeferrableLoad):
         if not self.isAdvanced():
             # advance
             x = self._setTemperature(self.setpoint + self.deferOffset)
-            self.advanced = x 
+            self.advanced = x
 
     def restore(self):
         if self.isDeferred():
