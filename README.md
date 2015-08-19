@@ -5,3 +5,6 @@ these loads will not need a centralized controller to send them regulation signa
 
 # Hardware for central computer
 TS-7250-v2 from technologic systems running Debian.
+
+# More Information
+Further information can be found on the [wiki](https://github.com/zwgraham/Central-Demand-Response/wiki)
