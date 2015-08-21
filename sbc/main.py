@@ -74,7 +74,7 @@ def run():
         logger.debug("Starting frequency meter")
         f_meter = frequency.ArduinoFrequencyMeter()
 
-        previouslyShed = None
+        previousEventPriority = None
         # TODO the following should be encapsulated in the Arduino
         # frequency meter class
         logger.debug("Entering short delay to allow Arduino startup")
@@ -86,42 +86,42 @@ def run():
             logger.info("F measurement: {}".format(f))
             # needs to be functionalized
             if f <= (NOMINAL-1*DELTA):
-                if previouslyShed is None:
+                if previousEventPriority is None:
                     loads.SheddableLoad.shedByPriority(10)
-                    previouslyShed = 10
+                    previousEventPriority = 10
                     logger.info("CONTINGENCY: loads of priority=10 are shed.")
-                if (f <= (NOMINAL-2*DELTA)) and (previouslyShed > 9):
+                if (f <= (NOMINAL-2*DELTA)) and (previousEventPriority > 9):
                     loads.SheddableLoad.shedByPriority(9)
-                    previouslyShed = 9
+                    previousEventPriority = 9
                     logger.info("CONTINGENCY: loads of priority>=9 are shed.")
-                elif (f > (NOMINAL-2*DELTA)) and (previouslyShed <= 9):
+                elif (f > (NOMINAL-2*DELTA)) and (previousEventPriority <= 9):
                     loads.SheddableLoad.restoreByPriority(9)
-                    previouslyShed = 10
+                    previousEventPriority = 10
                     logger.info("RESTORE: loads of priority<=9 are restored.")
-                if (f <= (NOMINAL-3*DELTA)) and (previouslyShed > 8):
+                if (f <= (NOMINAL-3*DELTA)) and (previousEventPriority > 8):
                     loads.SheddableLoad.shedByPriority(8)
-                    previouslyShed = 8
+                    previousEventPriority = 8
                     logger.info("CONTINGENCY: loads of priority>=8 are shed.")
-                elif (f > (NOMINAL-3*DELTA)) and (previouslyShed <= 8):
+                elif (f > (NOMINAL-3*DELTA)) and (previousEventPriority <= 8):
                     loads.SheddableLoad.restoreByPriority(8)
-                    previouslyShed = 9
+                    previousEventPriority = 9
                     logger.info("RESTORE: loads of priority<=8 are restored.")
-                if (f <= (NOMINAL-4*DELTA)) and (previouslyShed > 7):
+                if (f <= (NOMINAL-4*DELTA)) and (previousEventPriority > 7):
                     loads.SheddableLoad.shedByPriority(7)
-                    previouslyShed = 7
+                    previousEventPriority = 7
                     logger.info("CONTINGENCY: loads of priority>=7 are shed.")
-                elif (f > (NOMINAL-4*DELTA)) and (previouslyShed <= 7):
+                elif (f > (NOMINAL-4*DELTA)) and (previousEventPriority <= 7):
                     loads.SheddableLoad.restoreByPriority(7)
-                    previouslyShed = 8
+                    previousEventPriority = 8
                     logger.info("RESTORE: loads of priority <=7 are restored.")
             else:
-                if previouslyShed:
+                if previousEventPriority:
                     loads.SheddableLoad.restoreByPriority(10)
                     logger.info(
                         "RESTORE: loads of priority<=10 restored" +
                         " contingency over."
                     )
-                    previouslyShed = None
+                    previousEventPriority = None
 
             sleep(2)
     except KeyboardInterrupt:
