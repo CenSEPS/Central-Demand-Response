@@ -75,9 +75,9 @@ def run():
         f_meter = frequency.ArduinoFrequencyMeter()
 
         previouslyShed = None
-        # TODO the following should be encapsulated in the arduino
+        # TODO the following should be encapsulated in the Arduino
         # frequency meter class
-        logger.debug("Entering short delay to allow arduino startup")
+        logger.debug("Entering short delay to allow Arduino startup")
         sleep(2)
         # last_action_time = datetime.now()
         while True:
@@ -118,7 +118,7 @@ def run():
                 if previouslyShed:
                     loads.SheddableLoad.restoreByPriority(10)
                     logger.info(
-                        "RESTORE: loads of priority=10 restored" +
+                        "RESTORE: loads of priority<=10 restored" +
                         " contingency over."
                     )
                     previouslyShed = None
