@@ -62,6 +62,12 @@ def run():
     loads.SBCDIOSheddableLoad(priority=10, dio=77)
     loads.SBCDIOSheddableLoad(priority=10, dio=78)
     loads.SBCDIOSheddableLoad(priority=10, dio=79)
+    d = loads.ArduinoDeferrableWaterHeater(
+        priority=10,
+        setpoint=45,
+        deferOffset=40,
+        advanceOffset=0
+    )
     # initialize
 
     try:
