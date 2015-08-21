@@ -147,7 +147,6 @@ class DeferrableLoad(LoadBase):
         raise NotImplementedError
 
 
-# TODO NEED VARIABLE THAT KEEPS TRACK OF CURRENT SETPOINT
 class ArduinoDeferrableWaterHeater(DeferrableLoad):
     # this is written with only one device connected in mind
     # we send messages to the PAN broadcast address instead of
@@ -158,7 +157,8 @@ class ArduinoDeferrableWaterHeater(DeferrableLoad):
                  serial='/dev/ttyUSB0', baud=9600):
         self.serial = Serial(serial, baud)
         self.xbee = XBee(self.serial)
-        self.setpoint = setpoint
+        self.setpoint = None
+        self.nominalsetpoint = setpoint
         self.deferOffset = deferOffset
         self.advanceOffset = advanceOffset
         self.enabled = False
@@ -167,17 +167,20 @@ class ArduinoDeferrableWaterHeater(DeferrableLoad):
             advanceable=True
         )
         sleep(2)
-        self._setTemperature(self.setpoint)
+        self._setTemperature(self.nominalsetpoint)
 
     def _setTemperature(self, temperature):
         self.xbee.tx(dest_addr=b'\xFF\xFF',
                      data='SetPoint: {}!'.format(temperature))
         # we should get something back, no dropped packets
         d = self.xbee.wait_read_frame()
-        return self._checkPacket(
-            d,
-            'Set Point Recieved {:.2f}'.format(temperature)
-        )
+        if self._checkPacket(
+                d,
+                'Set Point Recieved {:.2f}'.format(temperature)):
+            self.setpoint = temperature
+            return True
+        else:
+            return False
 
     def _checkPacket(self, packet, phrase):
         if packet['rf_data'].strip() == phrase:
@@ -186,6 +189,7 @@ class ArduinoDeferrableWaterHeater(DeferrableLoad):
             return False
 
     def enable(self):
+        # do a check if setpoint is none and throw an exception
         self.xbee.tx(dest_addr=b'\xFF\xFF', data='ON!')
         d = self.xbee.wait_read_frame()
         # if it times out we need to check the status if it's enabled
@@ -195,29 +199,29 @@ class ArduinoDeferrableWaterHeater(DeferrableLoad):
     def defer(self):
         if self.isAdvanced():
             # return to nominal to defer
-            x = self._setTemperature(self.setpoint)
+            x = self._setTemperature(self.nominalsetpoint)
             self.advanced = not x
         elif not self.isDeferred():
             # defer
-            x = self._setTemperature(self.setpoint - self.deferOffset)
+            x = self._setTemperature(self.nominalsetpoint - self.deferOffset)
             self.deferred = x
 
     def advance(self):
         if self.isDeferred():
             # return to nominal to advance
-            x = self._setTemperature(self.setpoint)
+            x = self._setTemperature(self.nominalsetpoint)
             self.deferred = not x
         if not self.isAdvanced():
             # advance
-            x = self._setTemperature(self.setpoint + self.deferOffset)
+            x = self._setTemperature(self.nominalsetpoint + self.deferOffset)
             self.advanced = x
 
     def restore(self):
         if self.isDeferred():
-            x = self._setTemperature(self.setpoint)
+            x = self._setTemperature(self.nominalsetpoint)
             self.deferred = not x
         elif self.isAdvanced():
-            x = self._setTemperature(self.setpoint)
+            x = self._setTemperature(self.nominalsetpoint)
             self.advnaced = not x
 
     def disable(self):
