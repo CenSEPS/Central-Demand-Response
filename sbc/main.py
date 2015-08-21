@@ -79,6 +79,8 @@ def run():
         # frequency meter class
         logger.debug("Entering short delay to allow Arduino startup")
         sleep(2)
+        logger.debug("Enabling water heater.")
+        d.enable()
         # last_action_time = datetime.now()
         while True:
             logger.debug("Initiating F measurement")
@@ -88,35 +90,43 @@ def run():
             if f <= (NOMINAL-1*DELTA):
                 if previousEventPriority is None:
                     loads.SheddableLoad.shedByPriority(10)
+                    loads.DeferrableLoad.deferByPriority(10)
                     previousEventPriority = 10
                     logger.info("CONTINGENCY: loads of priority=10 are shed.")
                 if (f <= (NOMINAL-2*DELTA)) and (previousEventPriority > 9):
                     loads.SheddableLoad.shedByPriority(9)
+                    loads.DeferrableLoad.deferByPriority(9)
                     previousEventPriority = 9
                     logger.info("CONTINGENCY: loads of priority>=9 are shed.")
                 elif (f > (NOMINAL-2*DELTA)) and (previousEventPriority <= 9):
                     loads.SheddableLoad.restoreByPriority(9)
+                    loads.DeferrableLoad.restoreByPriority(9)
                     previousEventPriority = 10
                     logger.info("RESTORE: loads of priority<=9 are restored.")
                 if (f <= (NOMINAL-3*DELTA)) and (previousEventPriority > 8):
                     loads.SheddableLoad.shedByPriority(8)
+                    loads.DeferrableLoad.deferByPriority(8)
                     previousEventPriority = 8
                     logger.info("CONTINGENCY: loads of priority>=8 are shed.")
                 elif (f > (NOMINAL-3*DELTA)) and (previousEventPriority <= 8):
                     loads.SheddableLoad.restoreByPriority(8)
+                    loads.DeferrableLoad.restoreByPriority(8)
                     previousEventPriority = 9
                     logger.info("RESTORE: loads of priority<=8 are restored.")
                 if (f <= (NOMINAL-4*DELTA)) and (previousEventPriority > 7):
                     loads.SheddableLoad.shedByPriority(7)
+                    loads.DeferrableLoad(7)
                     previousEventPriority = 7
                     logger.info("CONTINGENCY: loads of priority>=7 are shed.")
                 elif (f > (NOMINAL-4*DELTA)) and (previousEventPriority <= 7):
                     loads.SheddableLoad.restoreByPriority(7)
+                    loads.DeferrableLoad.restoreByPriority(7)
                     previousEventPriority = 8
                     logger.info("RESTORE: loads of priority <=7 are restored.")
             else:
                 if previousEventPriority:
                     loads.SheddableLoad.restoreByPriority(10)
+                    loads.DeferrableLoad.restoreByPriority(10)
                     logger.info(
                         "RESTORE: loads of priority<=10 restored" +
                         " contingency over."
@@ -126,6 +136,7 @@ def run():
             sleep(2)
     except KeyboardInterrupt:
         logger.info("KeyboardInterrupt recieved... exiting.")
+        d.disable()
 
 if __name__ == "__main__":
     run()
