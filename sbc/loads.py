@@ -135,10 +135,17 @@ class DeferrableLoad(LoadBase):
     def defer(self):
         raise NotImplementedError
 
-    def deferByPriority(self, priority):
-        for load in DeferrableLoad.LoadList:
-            if priority == load.priority:
+    @classmethod
+    def deferByPriority(cls, priority):
+        for load in cls.LoadList:
+            if load.priority >= priority:
                 load.defer()
+
+    @classmethod
+    def restoreByPriority(cls, priority):
+        for load in cls.LoadList:
+            if load.priority <= priority:
+                load.restore()
 
     def restore(self):
         raise NotImplementedError
@@ -147,6 +154,7 @@ class DeferrableLoad(LoadBase):
         raise NotImplementedError
 
 
+# TODO: try accept blocks for timeouts
 class ArduinoDeferrableWaterHeater(DeferrableLoad):
     # this is written with only one device connected in mind
     # we send messages to the PAN broadcast address instead of
