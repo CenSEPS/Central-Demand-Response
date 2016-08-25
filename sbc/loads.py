@@ -1,8 +1,8 @@
-import subprocess
 import atexit
 from serial import Serial
 from xbee import XBee
 from time import sleep
+from ts7250v2 import dio
 
 
 class LoadBase(object):
@@ -65,36 +65,29 @@ class DummySheddableLoad(SheddableLoad):
 
 
 class SBCDIOSheddableLoad(SheddableLoad):
-    def __init__(self, priority, dio, evgpio='/usr/local/bin/evgpioctl'):
-        self.dio = dio
-        self.evgpio = evgpio
-        subprocess.call(
-            self.evgpio+" --ddrout {} --setout {}".format(self.dio, self.dio),
-            shell=True
-        )
+    def __init__(self, priority, dio_pin, evgpio='/usr/local/bin/evgpioctl'):
+        if dio_pin not in dio.DIO_MAP.keys():
+            raise TypeError("dio_pin not a key in dio.DIO_MAP.")
+
+        self.dio_pin = dio_pin
+        self.evgpio = dio.DIO()
+        self.evgpio.DIO_set_output(self.dio_pin)
+        self.evgpio.DIO_set_high(self.dio_pin)
         super(SBCDIOSheddableLoad, self).__init__(priority)
         # the following is a hack to ensure that the gpio is set back to
         # default when the program exits
 
-        def cleanup():
-            subprocess.call(
-                evgpio+" --clrout {} --ddrin {}".format(dio, dio),
-                shell=True
-            )
+        atexit.register(self._cleanup)
 
-        atexit.register(cleanup)
+    def _cleanup(self):
+        self.evgpio.DIO_set_low(self.dio_pin)
+        self.evgpio.DIO_set_input(self.dio_pin)
 
     def _evgpioOff(self):
-        subprocess.call(
-            self.evgpio+" --clrout {}".format(self.dio),
-            shell=True
-        )
+        self.evgpio.DIO_set_low(self.dio_pin)
 
     def _evgpioOn(self):
-        subprocess.call(
-            self.evgpio+" --setout {}".format(self.dio),
-            shell=True
-        )
+        self.evgpio.DIO_set_high(self.dio_pin)
 
     def shedLoad(self):
         if not self.isShed():

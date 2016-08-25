@@ -54,7 +54,6 @@ NOMINAL = 75.0
 DELTA = 6.0
 
 
-# priority 10 gets shed at 59.995
 def run():
     # load config file
     # TODO ^^^^^^^
@@ -75,8 +74,6 @@ def run():
         f_meter = frequency.ArduinoFrequencyMeter()
 
         previousEventPriority = None
-        # TODO the following should be encapsulated in the Arduino
-        # frequency meter class
         logger.debug("Entering short delay to allow Arduino startup")
         sleep(2)
         logger.debug("Enabling water heater.")
